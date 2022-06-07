@@ -39,7 +39,6 @@ object TodoBackend : Project({
 
     vcsRoot(TodoBackendVcs)
 
-    buildType(Test2)
     buildType(TestReport)
     buildType(TodoApp)
     buildType(Test1)
@@ -51,23 +50,6 @@ object Test1 : BuildType({
 
     vcs {
         root(TodoBackendVcs, "+:test1=>.")
-
-        cleanCheckout = true
-    }
-
-    steps {
-        gradle {
-            tasks = "test"
-        }
-    }
-
-})
-
-object Test2 : BuildType({
-    name = "Test2"
-
-    vcs {
-        root(TodoBackendVcs, "+:test2=>.")
 
         cleanCheckout = true
     }
@@ -140,5 +122,5 @@ object TodoImage : BuildType({
 
 object TodoBackendVcs : GitVcsRoot({
     name = "TodoBackendVcs"
-    url = "https://github.com/mkjetbrains/TodoApp-NoChain-KTS"
+    url = "https://github.com/semenova-ev/Build-Chain-Project"
 })
