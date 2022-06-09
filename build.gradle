@@ -8,7 +8,7 @@ ext {
 }
 
 jar {
-    baseName = 'todo'
+    baseName = 'app'
 //    version = buildNumber
 }
 
