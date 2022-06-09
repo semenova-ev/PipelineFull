@@ -1,8 +1,8 @@
-import jetbrains.buildServer.configs.kotlin.v2018_2.*
-import jetbrains.buildServer.configs.kotlin.v2018_2.buildSteps.dockerCommand
-import jetbrains.buildServer.configs.kotlin.v2018_2.buildSteps.gradle
-import jetbrains.buildServer.configs.kotlin.v2018_2.triggers.vcs
-import jetbrains.buildServer.configs.kotlin.v2018_2.vcs.GitVcsRoot
+import jetbrains.buildServer.configs.kotlin.*
+import jetbrains.buildServer.configs.kotlin.buildSteps.gradle
+import jetbrains.buildServer.configs.kotlin.buildSteps.sshExec
+import jetbrains.buildServer.configs.kotlin.triggers.vcs
+import jetbrains.buildServer.configs.kotlin.vcs.GitVcsRoot
 
 /*
 The settings script is an entry point for defining a TeamCity
@@ -26,62 +26,26 @@ To debug in IntelliJ Idea, open the 'Maven Projects' tool window (View
 'Debug' option is available in the context menu for the task.
 */
 
-version = "2019.1"
+version = "2022.04"
 
 project {
 
-    subProject(TodoBackend)
-}
-
-
-object TodoBackend : Project({
-    name = "TodoBackend"
-
-    vcsRoot(TodoBackendVcs)
+    vcsRoot(AppVcs)
 
     buildType(TestReport)
-    buildType(TodoApp)
-    buildType(Test1)
-    buildType(TodoImage)
-})
+    buildType(App)
+    buildType(Test)
+    buildType(Deploy)
+    buildTypesOrder = arrayListOf(App, Test, TestReport, Deploy)
+}
 
-object Test1 : BuildType({
-    name = "Test1"
+object App : BuildType({
+    name = "App"
 
-    vcs {
-        root(TodoBackendVcs, "+:test1=>.")
-
-        cleanCheckout = true
-    }
-
-    steps {
-        gradle {
-            tasks = "test"
-        }
-    }
-
-})
-
-object TestReport : BuildType({
-    name = "TestReport"
-
-    type = BuildTypeSettings.Type.COMPOSITE
+    artifactRules = "build/libs/app.jar"
 
     vcs {
-        root(TodoBackendVcs)
-
-        showDependenciesChanges = true
-    }
-
-})
-
-object TodoApp : BuildType({
-    name = "TodoApp"
-
-    artifactRules = "build/libs/todo.jar"
-
-    vcs {
-        root(TodoBackendVcs, "-:docker")
+        root(AppVcs, "-:docker")
 
         cleanCheckout = true
     }
@@ -95,32 +59,84 @@ object TodoApp : BuildType({
     }
 })
 
-object TodoImage : BuildType({
-    name = "TodoImage"
+object Deploy : BuildType({
+    name = "Deploy"
+
+    enablePersonalBuilds = false
+    type = BuildTypeSettings.Type.DEPLOYMENT
+    maxRunningBuilds = 1
+
+    steps {
+        sshExec {
+            commands = "echo 'Hello!!!'"
+            targetUrl = "51.250.97.59"
+            authMethod = uploadedKey {
+                username = "temino"
+                passphrase = "cksfe381a519311442e24a125e69b158dd9qxdVIanIclLyx57xQMGfew=="
+                key = "id_rsaa"
+            }
+        }
+    }
+
+    triggers {
+        vcs {
+            branchFilter = ""
+            watchChangesInDependencies = true
+        }
+    }
+
+    dependencies {
+        snapshot(TestReport) {
+        }
+        artifacts(App) {
+            buildRule = lastSuccessful()
+            artifactRules = "app.jar => build/libs/app.jar"
+        }
+    }
+})
+
+object Test : BuildType({
+    name = "Test"
 
     vcs {
-        root(TodoBackendVcs, "+:docker=>docker")
+        root(AppVcs, "+:test1=>.")
 
         cleanCheckout = true
     }
 
     steps {
-        dockerCommand {
-            commandType = build {
-                source = path {
-                    path = "./docker/Dockerfile"
-                }
-                contextDir = "."
-                namesAndTags = "mkjetbrains/todo-backend:%build.number%"
-                commandArgs = "--pull"
-            }
+        gradle {
+            tasks = "test"
+            buildFile = "build.gradle"
         }
     }
 
- 
+    dependencies {
+        snapshot(App) {
+        }
+    }
 })
 
-object TodoBackendVcs : GitVcsRoot({
-    name = "TodoBackendVcs"
+object TestReport : BuildType({
+    name = "TestReport"
+
+    type = BuildTypeSettings.Type.COMPOSITE
+
+    vcs {
+        root(AppVcs)
+
+        showDependenciesChanges = true
+    }
+
+    dependencies {
+        snapshot(Test) {
+        }
+    }
+})
+
+object AppVcs : GitVcsRoot({
+    name = "AppVcs"
     url = "https://github.com/semenova-ev/Build-Chain-Project"
+    branch = "master"
+    checkoutPolicy = GitVcsRoot.AgentCheckoutPolicy.USE_MIRRORS
 })
